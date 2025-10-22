@@ -30,9 +30,18 @@ router.get('/', (req, res) => {
 });
 
 // --- Preconfiguration redirect (absolute URL fix) ---
-router.get(`/:preconfiguration(${Object.keys(PreConfigurations).join('|')})`, (req, res) => {
+router.get('/:preconfiguration', (req, res) => {
+  const { preconfiguration } = req.params;
+  const validPreconfigs = Object.keys(PreConfigurations);
+
+  if (!validPreconfigs.includes(preconfiguration)) {
+    res.statusCode = 404;
+    res.end('Invalid preconfiguration');
+    return;
+  }
+
   const host = `${req.protocol}://${req.headers.host}`;
-  res.redirect(`${host}/${req.params.preconfiguration}/configure`);
+  res.redirect(`${host}/${preconfiguration}/configure`);
   res.end();
 });
 
