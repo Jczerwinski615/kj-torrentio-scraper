@@ -1,5 +1,4 @@
 import * as options from './options.js';
-import * as realdebrid from './realdebrid.js';
 import * as premiumize from './premiumize.js';
 import * as alldebrid from './alldebrid.js';
 import * as debridlink from './debridlink.js';
@@ -17,14 +16,7 @@ const RESOLVE_TIMEOUT = 2 * 60 * 1000; // 2 minutes
 const MIN_API_KEY_SYMBOLS = 15;
 const TOKEN_BLACKLIST = [];
 export const MochOptions = {
-  realdebrid: {
-    key: 'realdebrid',
-    instance: realdebrid,
-    name: "RealDebrid",
-    shortName: 'RD',
-    catalogs: ['']
-  },
-  premiumize: {
+   premiumize: {
     key: 'premiumize',
     instance: premiumize,
     name: 'Premiumize',
