@@ -12,7 +12,7 @@ import * as moch from './moch/moch.js';
 
 const router = new Router();
 
-// --- rate limiter ---
+// --- Rate limiter ---
 const limiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 300,
@@ -22,14 +22,14 @@ const limiter = rateLimit({
 
 router.use(cors());
 
-// --- Root redirect (absolute URL fix) ---
+// --- Root redirect ---
 router.get('/', (req, res) => {
   const host = `${req.protocol}://${req.headers.host}`;
   res.redirect(`${host}/configure`);
   res.end();
 });
 
-// --- Preconfiguration redirect (absolute URL fix) ---
+// --- Preconfiguration redirect ---
 router.get('/:preconfiguration', (req, res) => {
   const { preconfiguration } = req.params;
   const validPreconfigs = Object.keys(PreConfigurations);
@@ -45,40 +45,33 @@ router.get('/:preconfiguration', (req, res) => {
   res.end();
 });
 
-// --- Dedicated /configure route (for Stremio internal fetch) ---
-router.get('/configure', (req, res) => {
+// --- /configure routes (Render-safe, replaces :configuration? syntax) ---
+router.get(['/configure', '/:configuration/configure'], (req, res) => {
+  const configuration = req.params.configuration || '';
   const host = `${req.protocol}://${req.headers.host}`;
-  const configValues = { host };
+  const configValues = { ...parseConfiguration(configuration), host };
   const landingHTML = landingTemplate(manifest(configValues), configValues);
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.end(landingHTML);
 });
 
-// --- Configuration route ---
-router.get('/:configuration?/configure', (req, res) => {
+// --- Manifest routes (Render-safe) ---
+router.get(['/manifest.json', '/:configuration/manifest.json'], (req, res) => {
+  const configuration = req.params.configuration || '';
   const host = `${req.protocol}://${req.headers.host}`;
-  const configValues = { ...parseConfiguration(req.params.configuration || ''), host };
-  const landingHTML = landingTemplate(manifest(configValues), configValues);
-  res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.end(landingHTML);
-});
-
-// --- Manifest route ---
-router.get('/:configuration?/manifest.json', (req, res) => {
-  const host = `${req.protocol}://${req.headers.host}`;
-  const configValues = { ...parseConfiguration(req.params.configuration || ''), host };
+  const configValues = { ...parseConfiguration(configuration), host };
   const manifestBuf = JSON.stringify(manifest(configValues));
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.end(manifestBuf);
 });
 
 // --- Stream/meta resource route ---
-router.get('/:configuration?/:resource/:type/:id/:extra?.json', limiter, (req, res, next) => {
+router.get(['/:configuration/:resource/:type/:id/:extra?.json', '/:resource/:type/:id/:extra?.json'], limiter, (req, res, next) => {
   const { configuration, resource, type, id } = req.params;
   const extra = req.params.extra ? qs.parse(req.url.split('/').pop().slice(0, -5)) : {};
   const ip = requestIp.getClientIp(req);
   const host = `${req.protocol}://${req.headers.host}`;
-  const configValues = { ...extra, ...parseConfiguration(configuration), id, type, ip, host };
+  const configValues = { ...extra, ...parseConfiguration(configuration || ''), id, type, ip, host };
 
   addonInterface.get(resource, type, id, configValues)
     .then(resp => {
