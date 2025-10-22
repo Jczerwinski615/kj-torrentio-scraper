@@ -1,6 +1,6 @@
 import Router from 'router';
 import cors from 'cors';
-import rateLimit from "express-rate-limit";
+import rateLimit from 'express-rate-limit';
 import requestIp from 'request-ip';
 import userAgentParser from 'ua-parser-js';
 import addonInterface from './addon.js';
@@ -65,44 +65,54 @@ router.get(['/manifest.json', '/:configuration/manifest.json'], (req, res) => {
   res.end(manifestBuf);
 });
 
-// --- Stream/meta resource route ---
-router.get(['/:configuration/:resource/:type/:id/:extra?.json', '/:resource/:type/:id/:extra?.json'], limiter, (req, res, next) => {
-  const { configuration, resource, type, id } = req.params;
-  const extra = req.params.extra ? qs.parse(req.url.split('/').pop().slice(0, -5)) : {};
-  const ip = requestIp.getClientIp(req);
-  const host = `${req.protocol}://${req.headers.host}`;
-  const configValues = { ...extra, ...parseConfiguration(configuration || ''), id, type, ip, host };
+// --- Stream/meta resource routes (Render-safe) ---
+router.get(
+  [
+    '/:resource/:type/:id/:extra.json',
+    '/:resource/:type/:id.json',
+    '/:configuration/:resource/:type/:id/:extra.json',
+    '/:configuration/:resource/:type/:id.json'
+  ],
+  limiter,
+  (req, res, next) => {
+    const { configuration, resource, type, id } = req.params;
+    const extra = req.params.extra ? qs.parse(req.params.extra) : {};
+    const ip = requestIp.getClientIp(req);
+    const host = `${req.protocol}://${req.headers.host}`;
+    const configValues = { ...extra, ...parseConfiguration(configuration || ''), id, type, ip, host };
 
-  addonInterface.get(resource, type, id, configValues)
-    .then(resp => {
-      const cacheHeaders = {
-        cacheMaxAge: 'max-age',
-        staleRevalidate: 'stale-while-revalidate',
-        staleError: 'stale-if-error'
-      };
-      const cacheControl = Object.keys(cacheHeaders)
-        .map(prop => Number.isInteger(resp[prop]) && cacheHeaders[prop] + '=' + resp[prop])
-        .filter(Boolean)
-        .join(', ');
+    addonInterface
+      .get(resource, type, id, configValues)
+      .then((resp) => {
+        const cacheHeaders = {
+          cacheMaxAge: 'max-age',
+          staleRevalidate: 'stale-while-revalidate',
+          staleError: 'stale-if-error'
+        };
+        const cacheControl = Object.keys(cacheHeaders)
+          .map((prop) => Number.isInteger(resp[prop]) && `${cacheHeaders[prop]}=${resp[prop]}`)
+          .filter(Boolean)
+          .join(', ');
 
-      res.setHeader('Cache-Control', `${cacheControl}, public`);
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.end(JSON.stringify(resp));
-    })
-    .catch(err => {
-      if (err.noHandler) {
-        if (next) next();
-        else {
-          res.writeHead(404);
-          res.end(JSON.stringify({ err: 'not found' }));
+        res.setHeader('Cache-Control', `${cacheControl}, public`);
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify(resp));
+      })
+      .catch((err) => {
+        if (err.noHandler) {
+          if (next) next();
+          else {
+            res.writeHead(404);
+            res.end(JSON.stringify({ err: 'not found' }));
+          }
+        } else {
+          console.error(err);
+          res.writeHead(500);
+          res.end(JSON.stringify({ err: 'handler error' }));
         }
-      } else {
-        console.error(err);
-        res.writeHead(500);
-        res.end(JSON.stringify({ err: 'handler error' }));
-      }
-    });
-});
+      });
+  }
+);
 
 // --- MOCH resolve redirect ---
 router.get('/resolve/:moch/:apiKey/:infoHash/:cachedEntryInfo/:fileIndex/:filename?', (req, res) => {
@@ -118,12 +128,13 @@ router.get('/resolve/:moch/:apiKey/:infoHash/:cachedEntryInfo/:fileIndex/:filena
     isBrowser: !userAgent.includes('Stremio') && !!userAgentParser(userAgent).browser.name
   };
 
-  moch.resolve(parameters)
-    .then(url => {
+  moch
+    .resolve(parameters)
+    .then((url) => {
       res.writeHead(302, { Location: url });
       res.end();
     })
-    .catch(error => {
+    .catch((error) => {
       console.error(error);
       res.statusCode = 404;
       res.end();
@@ -136,4 +147,4 @@ export default function (req, res) {
     res.statusCode = 404;
     res.end();
   });
-};
+}
