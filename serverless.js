@@ -29,7 +29,7 @@ router.get('/', (req, res) => {
   res.end();
 });
 
-// --- Preconfiguration redirect (safe version) ---
+// --- Preconfiguration redirect ---
 router.get('/:preconfiguration', (req, res, next) => {
   const { preconfiguration } = req.params;
   const validPreconfigs = Object.keys(PreConfigurations);
@@ -39,12 +39,11 @@ router.get('/:preconfiguration', (req, res, next) => {
     res.redirect(`${host}/${preconfiguration}/configure`);
     res.end();
   } else {
-    // Let other routes handle it (no 404 here)
-    next();
+    next(); // pass to next route if not valid
   }
 });
 
-// --- /configure routes (Render-safe, replaces :configuration? syntax) ---
+// --- Configure routes (Render-safe) ---
 router.get(['/configure', '/:configuration/configure'], (req, res) => {
   const configuration = req.params.configuration || '';
   const host = `${req.protocol}://${req.headers.host}`;
@@ -121,31 +120,47 @@ router.get(
   }
 );
 
-// --- MOCH resolve redirect (safe route, no "?") ---
-router.get([
-  '/resolve/:moch/:apiKey/:infoHash/:cachedEntryInfo/:fileIndex',
-  '/resolve/:moch/:apiKey/:infoHash/:cachedEntryInfo/:fileIndex/:filename'
-], (req, res) => {
-  const userAgent = req.headers['user-agent'] || '';
-  const parameters = {
-    mochKey: req.params.moch,
-    apiKey: req.params.apiKey,
-    infoHash: req.params.infoHash.toLowerCase(),
-    fileIndex: isNaN(req.params.fileIndex)
-      ? undefined
-      : parseInt(req.params.fileIndex),
-    cachedEntryInfo: req.params.cachedEntryInfo,
-    ip: requestIp.getClientIp(req),
-    host: `${req.protocol}://${req.headers.host}`,
-    isBrowser:
-      !userAgent.includes('Stremio') &&
-      !!userAgentParser(userAgent).browser.name,
-  };
+// --- MOCH resolve redirect (safe) ---
+router.get(
+  [
+    '/resolve/:moch/:apiKey/:infoHash/:cachedEntryInfo/:fileIndex',
+    '/resolve/:moch/:apiKey/:infoHash/:cachedEntryInfo/:fileIndex/:filename'
+  ],
+  (req, res) => {
+    const userAgent = req.headers['user-agent'] || '';
+    const parameters = {
+      mochKey: req.params.moch,
+      apiKey: req.params.apiKey,
+      infoHash: req.params.infoHash.toLowerCase(),
+      fileIndex: isNaN(req.params.fileIndex)
+        ? undefined
+        : parseInt(req.params.fileIndex),
+      cachedEntryInfo: req.params.cachedEntryInfo,
+      ip: requestIp.getClientIp(req),
+      host: `${req.protocol}://${req.headers.host}`,
+      isBrowser:
+        !userAgent.includes('Stremio') &&
+        !!userAgentParser(userAgent).browser.name,
+    };
 
-  moch
-    .resolve(parameters)
-    .then((url) => {
-      res.writeHead(302, { Location: url });
-      res.end();
-    })
-    .catch((error) => {
+    moch
+      .resolve(parameters)
+      .then((url) => {
+        res.writeHead(302, { Location: url });
+        res.end();
+      })
+      .catch((error) => {
+        console.error(error);
+        res.statusCode = 404;
+        res.end();
+      });
+  }
+);
+
+// --- Default 404 fallback ---
+export default function (req, res) {
+  router(req, res, function () {
+    res.statusCode = 404;
+    res.end('Not found');
+  });
+}
