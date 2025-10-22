@@ -4,7 +4,8 @@
   "type": "module",
   "main": "start.js",
   "scripts": {
-    "start": "node start.js"
+  "start": "node start.js",
+  "postinstall": "npm rebuild sqlite3 --build-from-source"
   },
   "dependencies": {
     "@keyv/mongo": "^2.2.5",
