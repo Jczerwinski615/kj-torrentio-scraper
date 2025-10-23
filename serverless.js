@@ -80,4 +80,61 @@ router.get(['/:configuration/:resource/:type/:id/:extra.json', '/:resource/:type
   const extra = req.params.extra ? qs.parse(req.url.split('/').pop().replace('.json', '')) : {};
   const ip = requestIp.getClientIp(req);
   const host = `${req.protocol}://${req.headers.host}`;
-  const configValues = { ...extra, ...parseConfiguration(configuration || '')
+  const configValues = { ...extra, ...parseConfiguration(configuration || ''), id, type, ip, host };
+
+  addonInterface.get(resource, type, id, configValues)
+    .then(resp => {
+      const cacheHeaders = {
+        cacheMaxAge: 'max-age',
+        staleRevalidate: 'stale-while-revalidate',
+        staleError: 'stale-if-error'
+      };
+      const cacheControl = Object.keys(cacheHeaders)
+        .map(prop => Number.isInteger(resp[prop]) && cacheHeaders[prop] + '=' + resp[prop])
+        .filter(Boolean)
+        .join(', ');
+
+      res.setHeader('Cache-Control', `${cacheControl}, public`);
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify(resp));
+    })
+    .catch(err => {
+      console.error(err);
+      res.writeHead(err.noHandler ? 404 : 500);
+      res.end(JSON.stringify({ err: err.noHandler ? 'not found' : 'handler error' }));
+    });
+});
+
+// --- MOCH resolve redirect (fixed) ---
+router.get(['/resolve/:moch/:apiKey/:infoHash/:cachedEntryInfo/:fileIndex', '/resolve/:moch/:apiKey/:infoHash/:cachedEntryInfo/:fileIndex/:filename'], (req, res) => {
+  const userAgent = req.headers['user-agent'] || '';
+  const parameters = {
+    mochKey: req.params.moch,
+    apiKey: req.params.apiKey,
+    infoHash: req.params.infoHash.toLowerCase(),
+    fileIndex: parseInt(req.params.fileIndex),
+    cachedEntryInfo: req.params.cachedEntryInfo,
+    ip: requestIp.getClientIp(req),
+    host: `${req.protocol}://${req.headers.host}`,
+    isBrowser: !userAgent.includes('Stremio') && !!userAgentParser(userAgent).browser.name
+  };
+
+  moch.resolve(parameters)
+    .then(url => {
+      res.writeHead(302, { Location: url });
+      res.end();
+    })
+    .catch(error => {
+      console.error(error);
+      res.writeHead(404);
+      res.end();
+    });
+});
+
+// --- 404 fallback ---
+export default function (req, res) {
+  router(req, res, function () {
+    res.statusCode = 404;
+    res.end('Not found');
+  });
+};
