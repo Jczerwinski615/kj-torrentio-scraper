@@ -120,6 +120,14 @@ function handleResolve(req, res) {
       res.end();
     });
 }
+// --- Stremio health check route ---
+router.get('/stremio/v1', (req, res) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.end(JSON.stringify({
+    status: 'ok',
+    message: 'KJ-Torrentio-Scraper is live and reachable'
+  }));
+});
 
 // --- Default 404 fallback ---
 export default function (req, res) {
