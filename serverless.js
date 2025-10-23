@@ -32,18 +32,22 @@ router.get('/', (req, res) => {
 // --- Preconfiguration redirect ---
 router.get('/:preconfiguration', (req, res) => {
   const { preconfiguration } = req.params;
-  const validPreconfigs = Object.keys(PreConfigurations);
+  const validPreconfigs = Object.keys(PreConfigurations || {});
 
+  // If it doesn't match a valid preconfig, show clear message
   if (!validPreconfigs.includes(preconfiguration)) {
     res.statusCode = 404;
-    res.end('Invalid preconfiguration');
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.end(`Invalid preconfiguration "${preconfiguration}". Valid options: ${validPreconfigs.join(', ')}`);
     return;
   }
 
   const host = `${req.protocol}://${req.headers.host}`;
-  res.writeHead(302, { Location: `${host}/${preconfiguration}/configure` });
+  const redirectUrl = `${host}/${preconfiguration}/manifest.json`;
+  res.writeHead(302, { Location: redirectUrl });
   res.end();
 });
+
 
 // --- Configure routes ---
 router.get(['/configure', '/:configuration/configure'], (req, res) => {
