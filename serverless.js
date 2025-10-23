@@ -11,52 +11,52 @@ import landingTemplate from './lib/landingTemplate.js';
 import * as moch from './moch/moch.js';
 
 const router = new Router();
-router.use(cors());
 
+// --- Rate limiter ---
 const limiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
+  windowMs: 60 * 60 * 1000, // 1 hour
   max: 300,
   headers: false,
   keyGenerator: (req) => requestIp.getClientIp(req)
 });
 
+router.use(cors());
+
 // --- Root redirect ---
 router.get('/', (req, res) => {
   const host = `${req.protocol}://${req.headers.host}`;
-  const html = landingTemplate(manifest({ host }), { host });
-  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-  res.end(html);
+  res.writeHead(302, { Location: `${host}/configure` });
+  res.end();
 });
 
 // --- Preconfiguration redirect ---
 router.get(/^\/(lite|brazuca)$/, (req, res) => {
-  const preconfiguration = req.url.replace('/', '');
+  const preconfig = req.url.replace('/', '');
   const host = `${req.protocol}://${req.headers.host}`;
-  res.writeHead(302, { Location: `${host}/${preconfiguration}/configure` });
+  res.writeHead(302, { Location: `${host}/${preconfig}/manifest.json` });
   res.end();
 });
 
-// --- Configure route (handles root & preconfigs) ---
+// --- /configure route ---
 router.get(['/configure', '/:configuration/configure'], (req, res) => {
   const configuration = req.params.configuration || '';
   const host = `${req.protocol}://${req.headers.host}`;
   const configValues = { ...parseConfiguration(configuration), host };
-  const html = landingTemplate(manifest(configValues), configValues);
-  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-  res.end(html);
+  const landingHTML = landingTemplate(manifest(configValues), configValues);
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.end(landingHTML);
 });
 
-// --- Manifest routes ---
+// --- Manifest route ---
 router.get(['/manifest.json', '/:configuration/manifest.json'], (req, res) => {
   const configuration = req.params.configuration || '';
   const host = `${req.protocol}://${req.headers.host}`;
   const configValues = { ...parseConfiguration(configuration), host };
-  const manifestBuf = JSON.stringify(manifest(configValues));
-  res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-  res.end(manifestBuf);
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.end(JSON.stringify(manifest(configValues)));
 });
 
-// --- Stream/meta routes ---
+// --- Stream/meta resource route ---
 router.get(['/:configuration/:resource/:type/:id/:extra.json', '/:resource/:type/:id/:extra.json'], limiter, (req, res, next) => {
   const { configuration, resource, type, id } = req.params;
   const extra = req.params.extra ? qs.parse(req.url.split('/').pop().slice(0, -5)) : {};
@@ -66,21 +66,33 @@ router.get(['/:configuration/:resource/:type/:id/:extra.json', '/:resource/:type
 
   addonInterface.get(resource, type, id, configValues)
     .then(resp => {
-      res.writeHead(200, {
-        'Cache-Control': 'public, max-age=3600, stale-while-revalidate=600, stale-if-error=86400',
-        'Content-Type': 'application/json; charset=utf-8'
-      });
+      const cacheHeaders = {
+        cacheMaxAge: 'max-age',
+        staleRevalidate: 'stale-while-revalidate',
+        staleError: 'stale-if-error'
+      };
+      const cacheControl = Object.keys(cacheHeaders)
+        .map(prop => Number.isInteger(resp[prop]) && `${cacheHeaders[prop]}=${resp[prop]}`)
+        .filter(Boolean)
+        .join(', ');
+
+      res.setHeader('Cache-Control', `${cacheControl}, public`);
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
       res.end(JSON.stringify(resp));
     })
     .catch(err => {
-      console.error(err);
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ err: 'Internal server error' }));
+      if (err.noHandler) {
+        next ? next() : res.writeHead(404).end(JSON.stringify({ err: 'not found' }));
+      } else {
+        console.error(err);
+        res.writeHead(500);
+        res.end(JSON.stringify({ err: 'handler error' }));
+      }
     });
 });
 
 // --- MOCH resolve redirect ---
-router.get(['/resolve/:moch/:apiKey/:infoHash/:cachedEntryInfo/:fileIndex', '/resolve/:moch/:apiKey/:infoHash/:cachedEntryInfo/:fileIndex/:filename'], (req, res) => {
+router.get('/resolve/:moch/:apiKey/:infoHash/:cachedEntryInfo/:fileIndex/:filename?', (req, res) => {
   const userAgent = req.headers['user-agent'] || '';
   const parameters = {
     mochKey: req.params.moch,
@@ -107,8 +119,8 @@ router.get(['/resolve/:moch/:apiKey/:infoHash/:cachedEntryInfo/:fileIndex', '/re
 
 // --- Default 404 fallback ---
 export default function (req, res) {
-  router(req, res, function () {
-    res.writeHead(404, { 'Content-Type': 'text/plain' });
+  router(req, res, () => {
+    res.statusCode = 404;
     res.end('Not Found');
   });
-}
+};
