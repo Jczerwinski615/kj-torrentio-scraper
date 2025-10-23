@@ -30,24 +30,14 @@ router.get('/', (req, res) => {
 });
 
 // --- Preconfiguration redirect ---
-router.get('/:preconfiguration', (req, res) => {
-  const { preconfiguration } = req.params;
-  const validPreconfigs = Object.keys(PreConfigurations || {});
-
-  // If it doesn't match a valid preconfig, show clear message
-  if (!validPreconfigs.includes(preconfiguration)) {
-    res.statusCode = 404;
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.end(`Invalid preconfiguration "${preconfiguration}". Valid options: ${validPreconfigs.join(', ')}`);
-    return;
-  }
-
+// Only match exact preconfig keys, not manifest.json or other paths
+router.get(/^\/(lite|brazuca)$/, (req, res) => {
+  const preconfiguration = req.url.replace('/', '');
   const host = `${req.protocol}://${req.headers.host}`;
   const redirectUrl = `${host}/${preconfiguration}/manifest.json`;
   res.writeHead(302, { Location: redirectUrl });
   res.end();
 });
-
 
 // --- Configure routes ---
 router.get(['/configure', '/:configuration/configure'], (req, res) => {
