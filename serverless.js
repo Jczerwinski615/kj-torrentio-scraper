@@ -11,6 +11,7 @@ import landingTemplate from './lib/landingTemplate.js';
 import * as moch from './moch/moch.js';
 
 const router = new Router();
+router.use(cors());
 
 const limiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -18,8 +19,6 @@ const limiter = rateLimit({
   headers: false,
   keyGenerator: (req) => requestIp.getClientIp(req)
 });
-
-router.use(cors());
 
 // --- Root redirect ---
 router.get('/', (req, res) => {
@@ -33,12 +32,11 @@ router.get('/', (req, res) => {
 router.get(/^\/(lite|brazuca)$/, (req, res) => {
   const preconfiguration = req.url.replace('/', '');
   const host = `${req.protocol}://${req.headers.host}`;
-  const redirectUrl = `${host}/${preconfiguration}/manifest.json`;
-  res.writeHead(302, { Location: redirectUrl });
+  res.writeHead(302, { Location: `${host}/${preconfiguration}/configure` });
   res.end();
 });
 
-// --- Configure route (for Stremio install button) ---
+// --- Configure route (handles root & preconfigs) ---
 router.get(['/configure', '/:configuration/configure'], (req, res) => {
   const configuration = req.params.configuration || '';
   const host = `${req.protocol}://${req.headers.host}`;
