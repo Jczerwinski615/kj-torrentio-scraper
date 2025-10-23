@@ -92,7 +92,11 @@ router.get(['/:configuration/:resource/:type/:id/:extra.json', '/:resource/:type
 });
 
 // --- MOCH resolve redirect ---
-router.get('/resolve/:moch/:apiKey/:infoHash/:cachedEntryInfo/:fileIndex/:filename?', (req, res) => {
+// Split into two routes (no '?' allowed in router patterns)
+router.get('/resolve/:moch/:apiKey/:infoHash/:cachedEntryInfo/:fileIndex', handleResolve);
+router.get('/resolve/:moch/:apiKey/:infoHash/:cachedEntryInfo/:fileIndex/:filename', handleResolve);
+
+function handleResolve(req, res) {
   const userAgent = req.headers['user-agent'] || '';
   const parameters = {
     mochKey: req.params.moch,
@@ -115,7 +119,7 @@ router.get('/resolve/:moch/:apiKey/:infoHash/:cachedEntryInfo/:fileIndex/:filena
       res.statusCode = 404;
       res.end();
     });
-});
+}
 
 // --- Default 404 fallback ---
 export default function (req, res) {
@@ -123,4 +127,4 @@ export default function (req, res) {
     res.statusCode = 404;
     res.end('Not Found');
   });
-};
+}
