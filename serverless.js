@@ -12,9 +12,8 @@ import * as moch from './moch/moch.js';
 
 const router = new Router();
 
-// --- Rate limiter ---
 const limiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
+  windowMs: 60 * 60 * 1000,
   max: 300,
   headers: false,
   keyGenerator: (req) => requestIp.getClientIp(req)
@@ -25,12 +24,12 @@ router.use(cors());
 // --- Root redirect ---
 router.get('/', (req, res) => {
   const host = `${req.protocol}://${req.headers.host}`;
-  res.writeHead(302, { Location: `${host}/configure` });
-  res.end();
+  const html = landingTemplate(manifest({ host }), { host });
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+  res.end(html);
 });
 
 // --- Preconfiguration redirect ---
-// Only match exact preconfig keys, not manifest.json or other paths
 router.get(/^\/(lite|brazuca)$/, (req, res) => {
   const preconfiguration = req.url.replace('/', '');
   const host = `${req.protocol}://${req.headers.host}`;
@@ -39,14 +38,14 @@ router.get(/^\/(lite|brazuca)$/, (req, res) => {
   res.end();
 });
 
-// --- Configure routes ---
+// --- Configure route (for Stremio install button) ---
 router.get(['/configure', '/:configuration/configure'], (req, res) => {
   const configuration = req.params.configuration || '';
   const host = `${req.protocol}://${req.headers.host}`;
   const configValues = { ...parseConfiguration(configuration), host };
-  const landingHTML = landingTemplate(manifest(configValues), configValues);
-  res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.end(landingHTML);
+  const html = landingTemplate(manifest(configValues), configValues);
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+  res.end(html);
 });
 
 // --- Manifest routes ---
@@ -55,11 +54,11 @@ router.get(['/manifest.json', '/:configuration/manifest.json'], (req, res) => {
   const host = `${req.protocol}://${req.headers.host}`;
   const configValues = { ...parseConfiguration(configuration), host };
   const manifestBuf = JSON.stringify(manifest(configValues));
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(manifestBuf);
 });
 
-// --- Stream/meta resource route ---
+// --- Stream/meta routes ---
 router.get(['/:configuration/:resource/:type/:id/:extra.json', '/:resource/:type/:id/:extra.json'], limiter, (req, res, next) => {
   const { configuration, resource, type, id } = req.params;
   const extra = req.params.extra ? qs.parse(req.url.split('/').pop().slice(0, -5)) : {};
@@ -69,32 +68,16 @@ router.get(['/:configuration/:resource/:type/:id/:extra.json', '/:resource/:type
 
   addonInterface.get(resource, type, id, configValues)
     .then(resp => {
-      const cacheHeaders = {
-        cacheMaxAge: 'max-age',
-        staleRevalidate: 'stale-while-revalidate',
-        staleError: 'stale-if-error'
-      };
-      const cacheControl = Object.keys(cacheHeaders)
-        .map(prop => Number.isInteger(resp[prop]) && cacheHeaders[prop] + '=' + resp[prop])
-        .filter(Boolean)
-        .join(', ');
-
-      res.setHeader('Cache-Control', `${cacheControl}, public`);
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.writeHead(200, {
+        'Cache-Control': 'public, max-age=3600, stale-while-revalidate=600, stale-if-error=86400',
+        'Content-Type': 'application/json; charset=utf-8'
+      });
       res.end(JSON.stringify(resp));
     })
     .catch(err => {
-      if (err.noHandler) {
-        if (next) next();
-        else {
-          res.writeHead(404);
-          res.end(JSON.stringify({ err: 'not found' }));
-        }
-      } else {
-        console.error(err);
-        res.writeHead(500);
-        res.end(JSON.stringify({ err: 'handler error' }));
-      }
+      console.error(err);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ err: 'Internal server error' }));
     });
 });
 
@@ -127,7 +110,7 @@ router.get(['/resolve/:moch/:apiKey/:infoHash/:cachedEntryInfo/:fileIndex', '/re
 // --- Default 404 fallback ---
 export default function (req, res) {
   router(req, res, function () {
-    res.statusCode = 404;
+    res.writeHead(404, { 'Content-Type': 'text/plain' });
     res.end('Not Found');
   });
 }
