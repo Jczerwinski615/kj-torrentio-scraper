@@ -120,22 +120,24 @@ function handleResolve(req, res) {
       res.end();
     });
 }
-// --- Stremio health check route ---
-router.get('/stremio/v1', (req, res) => {
+// --- Universal Stremio health & ping routes ---
+router.get([
+  '/stremio',
+  '/stremio/v1',
+  '/stremio/v1/ping',
+  '/stremio/v1/server.json',
+  '/stremio/v1.0',
+  '/stremio/v1.0/ping',
+  '/stremio/ping',
+  '/ping'
+], (req, res) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.end(JSON.stringify({
     status: 'ok',
-    message: 'KJ-Torrentio-Scraper is live and reachable'
+    message: 'KJ-Torrentio-Scraper streaming server is reachable'
   }));
 });
-// --- Stremio ping route (used for Fire TV connection test) ---
-router.get(['/stremio/v1/ping', '/stremio/ping'], (req, res) => {
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.end(JSON.stringify({
-    status: 'ok',
-    message: 'Streaming server ping successful'
-  }));
-});
+
 
 // --- Default 404 fallback ---
 export default function (req, res) {
