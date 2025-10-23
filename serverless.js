@@ -131,13 +131,13 @@ router.get([
   '/stremio/ping',
   '/ping'
 ], (req, res) => {
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.end(JSON.stringify({
+  const payload = {
     status: 'ok',
     message: 'KJ-Torrentio-Scraper streaming server is reachable'
-  }));
+  };
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.end(JSON.stringify(payload));
 });
-
 
 // --- Default 404 fallback ---
 export default function (req, res) {
