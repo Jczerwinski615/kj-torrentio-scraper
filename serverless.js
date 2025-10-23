@@ -30,27 +30,24 @@ router.get('/', (req, res) => {
 });
 
 // --- Preconfiguration redirect ---
-router.get('/:preconfiguration', (req, res, next) => {
+router.get('/:preconfiguration', (req, res) => {
   const { preconfiguration } = req.params;
   const validPreconfigs = Object.keys(PreConfigurations);
-  if (!validPreconfigs.includes(preconfiguration)) return next();
+
+  if (!validPreconfigs.includes(preconfiguration)) {
+    res.statusCode = 404;
+    res.end('Invalid preconfiguration');
+    return;
+  }
+
   const host = `${req.protocol}://${req.headers.host}`;
   res.writeHead(302, { Location: `${host}/${preconfiguration}/configure` });
   res.end();
 });
 
-// --- Dedicated /configure page (Render-safe) ---
-router.get('/configure', (req, res) => {
-  const host = `${req.protocol}://${req.headers.host}`;
-  const configValues = { host };
-  const landingHTML = landingTemplate(manifest(configValues), configValues);
-  res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.end(landingHTML);
-});
-
-// --- Configuration route (for specific configs) ---
-router.get('/:configuration/configure', (req, res) => {
-  const { configuration } = req.params;
+// --- Configure routes ---
+router.get(['/configure', '/:configuration/configure'], (req, res) => {
+  const configuration = req.params.configuration || '';
   const host = `${req.protocol}://${req.headers.host}`;
   const configValues = { ...parseConfiguration(configuration), host };
   const landingHTML = landingTemplate(manifest(configValues), configValues);
@@ -59,25 +56,19 @@ router.get('/:configuration/configure', (req, res) => {
 });
 
 // --- Manifest routes ---
-router.get('/manifest.json', (req, res) => {
-  const host = `${req.protocol}://${req.headers.host}`;
-  const configValues = { host };
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.end(JSON.stringify(manifest(configValues)));
-});
-
-router.get('/:configuration/manifest.json', (req, res) => {
-  const { configuration } = req.params;
+router.get(['/manifest.json', '/:configuration/manifest.json'], (req, res) => {
+  const configuration = req.params.configuration || '';
   const host = `${req.protocol}://${req.headers.host}`;
   const configValues = { ...parseConfiguration(configuration), host };
+  const manifestBuf = JSON.stringify(manifest(configValues));
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.end(JSON.stringify(manifest(configValues)));
+  res.end(manifestBuf);
 });
 
 // --- Stream/meta resource route ---
 router.get(['/:configuration/:resource/:type/:id/:extra.json', '/:resource/:type/:id/:extra.json'], limiter, (req, res, next) => {
   const { configuration, resource, type, id } = req.params;
-  const extra = req.params.extra ? qs.parse(req.url.split('/').pop().replace('.json', '')) : {};
+  const extra = req.params.extra ? qs.parse(req.url.split('/').pop().slice(0, -5)) : {};
   const ip = requestIp.getClientIp(req);
   const host = `${req.protocol}://${req.headers.host}`;
   const configValues = { ...extra, ...parseConfiguration(configuration || ''), id, type, ip, host };
@@ -99,20 +90,28 @@ router.get(['/:configuration/:resource/:type/:id/:extra.json', '/:resource/:type
       res.end(JSON.stringify(resp));
     })
     .catch(err => {
-      console.error(err);
-      res.writeHead(err.noHandler ? 404 : 500);
-      res.end(JSON.stringify({ err: err.noHandler ? 'not found' : 'handler error' }));
+      if (err.noHandler) {
+        if (next) next();
+        else {
+          res.writeHead(404);
+          res.end(JSON.stringify({ err: 'not found' }));
+        }
+      } else {
+        console.error(err);
+        res.writeHead(500);
+        res.end(JSON.stringify({ err: 'handler error' }));
+      }
     });
 });
 
-// --- MOCH resolve redirect (fixed) ---
+// --- MOCH resolve redirect ---
 router.get(['/resolve/:moch/:apiKey/:infoHash/:cachedEntryInfo/:fileIndex', '/resolve/:moch/:apiKey/:infoHash/:cachedEntryInfo/:fileIndex/:filename'], (req, res) => {
   const userAgent = req.headers['user-agent'] || '';
   const parameters = {
     mochKey: req.params.moch,
     apiKey: req.params.apiKey,
     infoHash: req.params.infoHash.toLowerCase(),
-    fileIndex: parseInt(req.params.fileIndex),
+    fileIndex: isNaN(req.params.fileIndex) ? undefined : parseInt(req.params.fileIndex),
     cachedEntryInfo: req.params.cachedEntryInfo,
     ip: requestIp.getClientIp(req),
     host: `${req.protocol}://${req.headers.host}`,
@@ -126,15 +125,15 @@ router.get(['/resolve/:moch/:apiKey/:infoHash/:cachedEntryInfo/:fileIndex', '/re
     })
     .catch(error => {
       console.error(error);
-      res.writeHead(404);
+      res.statusCode = 404;
       res.end();
     });
 });
 
-// --- 404 fallback ---
+// --- Default 404 fallback ---
 export default function (req, res) {
   router(req, res, function () {
     res.statusCode = 404;
-    res.end('Not found');
+    res.end('Not Found');
   });
-};
+}
