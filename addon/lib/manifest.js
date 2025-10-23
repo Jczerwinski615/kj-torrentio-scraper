@@ -10,9 +10,9 @@ const MochProviders = Object.values(MochOptions);
 export function manifest(config = {}) {
   const overrideManifest = getManifestOverride(config);
   const baseManifest = {
-    id: 'com.stremio.torrentio.addon',
+    id: 'org.stremio.kj-torrentio',
     version: '0.0.15',
-    name: getName(overrideManifest, config),
+    name: 'KJ-Torrentio-Scraper',
     description: getDescription(config),
     catalogs: getCatalogs(config),
     resources: getResources(config),

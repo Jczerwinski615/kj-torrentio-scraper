@@ -1,3 +1,8 @@
+import dotenv from "dotenv";
+dotenv.config();
+
+import './lib/repository.js';
+
 import express from 'express';
 import swStats from 'swagger-stats';
 import serverless from './serverless.js';
@@ -19,7 +24,18 @@ app.use(swStats.getMiddleware({
 }))
 app.use(express.static('static', { maxAge: '1y' }));
 app.use((req, res, next) => serverless(req, res, next));
-app.listen(process.env.PORT || 7000, () => {
-  initBestTrackers()
-      .then(() => console.log(`Started addon at: http://localhost:${process.env.PORT || 7000}`));
+// --- FIX START ---
+const PORT = process.env.PORT || 11470;
+let HOST = process.env.HOST || `http://localhost:${PORT}`;
+
+// Normalize HOST if missing protocol
+if (!HOST.startsWith('http')) {
+  HOST = `http://${HOST}`;
+}
+
+app.listen(PORT, () => {
+  initBestTrackers().then(() => {
+    console.log(`Started addon at: ${HOST}`);
+  });
 });
+// --- FIX END ---
