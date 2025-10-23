@@ -135,8 +135,13 @@ router.get([
     status: 'ok',
     message: 'KJ-Torrentio-Scraper streaming server is reachable'
   };
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.end(JSON.stringify(payload));
+  const body = JSON.stringify(payload);
+  res.statusCode = 200;
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', '*');
+  res.setHeader('Content-Length', Buffer.byteLength(body));
+  res.end(body);
 });
 
 // --- Default 404 fallback ---
