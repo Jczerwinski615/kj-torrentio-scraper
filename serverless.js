@@ -128,6 +128,14 @@ router.get('/stremio/v1', (req, res) => {
     message: 'KJ-Torrentio-Scraper is live and reachable'
   }));
 });
+// --- Stremio ping route (used for Fire TV connection test) ---
+router.get(['/stremio/v1/ping', '/stremio/ping'], (req, res) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.end(JSON.stringify({
+    status: 'ok',
+    message: 'Streaming server ping successful'
+  }));
+});
 
 // --- Default 404 fallback ---
 export default function (req, res) {
