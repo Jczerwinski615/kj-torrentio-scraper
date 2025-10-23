@@ -131,15 +131,18 @@ router.get([
   '/stremio/ping',
   '/ping'
 ], (req, res) => {
-  const payload = {
-    stremioServer: true,
-    name: "KJ-Torrentio-Scraper",
+  const serverInfo = {
+    id: "kj-torrentio-scraper",
     version: "1.0.0",
-    status: "ok",
-    message: "KJ-Torrentio-Scraper streaming server is reachable"
+    name: "KJ Torrentio Scraper",
+    description: "Streaming server is online and reachable.",
+    resources: ["stream", "meta"],
+    types: ["movie", "series"],
+    catalogs: []
   };
+
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.end(JSON.stringify(payload));
+  res.end(JSON.stringify(serverInfo));
 });
 
 // --- Default 404 fallback ---
