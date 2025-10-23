@@ -132,16 +132,14 @@ router.get([
   '/ping'
 ], (req, res) => {
   const payload = {
-    status: 'ok',
-    message: 'KJ-Torrentio-Scraper streaming server is reachable'
+    stremioServer: true,
+    name: "KJ-Torrentio-Scraper",
+    version: "1.0.0",
+    status: "ok",
+    message: "KJ-Torrentio-Scraper streaming server is reachable"
   };
-  const body = JSON.stringify(payload);
-  res.statusCode = 200;
-  res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', '*');
-  res.setHeader('Content-Length', Buffer.byteLength(body));
-  res.end(body);
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.end(JSON.stringify(payload));
 });
 
 // --- Default 404 fallback ---
