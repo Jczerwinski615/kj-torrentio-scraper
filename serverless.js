@@ -156,6 +156,31 @@ router.get(/^\/stremio(.*)/, (req, res, next) => {
   console.log(`🛰️  Incoming Stremio request: ${req.method} ${req.url} from ${requestIp.getClientIp(req)}`);
   next();
 });
+// --- Add a direct manifest reference for Stremio compatibility ---
+router.get(['/stremio/v1/server.json', '/stremio/ping'], (req, res) => {
+  const base = `${req.protocol}://${req.headers.host}`;
+  const serverInfo = {
+    id: "kj-torrentio-scraper",
+    version: "1.0.0",
+    name: "KJ Torrentio Scraper",
+    description: "Custom streaming server compatible with Stremio",
+    logo: `${base}/logo.png`,
+    manifestUrl: `${base}/manifest.json`,
+    resources: ["stream", "meta"],
+    types: ["movie", "series"],
+    catalogs: [],
+    behaviorHints: {
+      configurable: false,
+      configurationRequired: false
+    }
+  };
+
+  res.writeHead(200, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-cache"
+  });
+  res.end(JSON.stringify(serverInfo));
+});
 
 // --- Default 404 fallback ---
 export default function (req, res) {
