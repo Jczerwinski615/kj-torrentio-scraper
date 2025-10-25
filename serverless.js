@@ -120,7 +120,7 @@ function handleResolve(req, res) {
       res.end();
     });
 }
-// --- Fully Stremio-compatible ping and server info ---
+// --- Fully Stremio-compatible server info ---
 router.get([
   '/stremio',
   '/stremio/v1',
@@ -130,12 +130,14 @@ router.get([
 ], (req, res) => {
   const base = `${req.protocol}://${req.headers.host}`;
   const manifestUrl = `${base}/manifest.json`;
-  const serverInfo = {
+
+  const manifestObj = {
     id: "kj-torrentio-scraper",
     version: "1.0.0",
     name: "KJ Torrentio Scraper",
     description: "Custom streaming server compatible with Stremio",
     logo: `${base}/logo.png`,
+    background: `${base}/logo.png`,
     manifestUrl,
     resources: ["stream", "meta"],
     types: ["movie", "series"],
@@ -150,7 +152,7 @@ router.get([
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "no-cache"
   });
-  res.end(JSON.stringify(serverInfo));
+  res.end(JSON.stringify({ manifest: manifestObj }));
 });
 // --- DEBUG LOGGER FOR STREMIO TRAFFIC ---
 router.get(/^\/stremio(.*)/, (req, res, next) => {
