@@ -120,12 +120,12 @@ function handleResolve(req, res) {
       res.end();
     });
 }
-// --- Universal Stremio health & ping routes ---
+// --- Stremio-compatible health & ping routes ---
 router.get([
   '/stremio',
   '/stremio/v1',
-  '/stremio/v1/ping',
   '/stremio/v1/server.json',
+  '/stremio/v1/ping',
   '/stremio/v1.0',
   '/stremio/v1.0/ping',
   '/stremio/ping',
@@ -135,13 +135,17 @@ router.get([
     id: "kj-torrentio-scraper",
     version: "1.0.0",
     name: "KJ Torrentio Scraper",
-    description: "Streaming server is online and reachable.",
+    description: "Streaming server (Stremio compatible)",
+    behaviorHints: { configurable: false, configurationRequired: false },
     resources: ["stream", "meta"],
     types: ["movie", "series"],
-    catalogs: []
+    catalogs: [],
+    logo: `${req.protocol}://${req.headers.host}/static/images/logo_v1.png`
   };
 
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.statusCode = 200;
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.end(JSON.stringify(serverInfo));
 });
 
