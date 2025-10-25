@@ -151,6 +151,11 @@ router.get([
   });
   res.end(JSON.stringify(serverInfo));
 });
+// --- DEBUG LOGGER FOR STREMIO TRAFFIC ---
+router.get(/^\/stremio(.*)/, (req, res, next) => {
+  console.log(`🛰️  Incoming Stremio request: ${req.method} ${req.url} from ${requestIp.getClientIp(req)}`);
+  next();
+});
 
 // --- Default 404 fallback ---
 export default function (req, res) {
