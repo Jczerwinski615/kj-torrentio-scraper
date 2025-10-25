@@ -6,7 +6,7 @@ import userAgentParser from 'ua-parser-js';
 import addonInterface from './addon.js';
 import qs from 'querystring';
 import { manifest } from './lib/manifest.js';
-import { parseConfiguration, PreConfigurations } from './lib/configuration.js';
+import { parseConfiguration } from './lib/configuration.js';
 import landingTemplate from './lib/landingTemplate.js';
 import * as moch from './moch/moch.js';
 
@@ -14,7 +14,7 @@ const router = new Router();
 
 // --- Rate limiter ---
 const limiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
+  windowMs: 60 * 60 * 1000,
   max: 300,
   headers: false,
   keyGenerator: (req) => requestIp.getClientIp(req)
@@ -26,14 +26,6 @@ router.use(cors());
 router.get('/', (req, res) => {
   const host = `${req.protocol}://${req.headers.host}`;
   res.writeHead(302, { Location: `${host}/configure` });
-  res.end();
-});
-
-// --- Preconfiguration redirect ---
-router.get(/^\/(lite|brazuca)$/, (req, res) => {
-  const preconfig = req.url.replace('/', '');
-  const host = `${req.protocol}://${req.headers.host}`;
-  res.writeHead(302, { Location: `${host}/${preconfig}/manifest.json` });
   res.end();
 });
 
@@ -56,7 +48,7 @@ router.get(['/manifest.json', '/:configuration/manifest.json'], (req, res) => {
   res.end(JSON.stringify(manifest(configValues)));
 });
 
-// --- Stream/meta resource route ---
+// --- Stream/meta route ---
 router.get(['/:configuration/:resource/:type/:id/:extra.json', '/:resource/:type/:id/:extra.json'], limiter, (req, res, next) => {
   const { configuration, resource, type, id } = req.params;
   const extra = req.params.extra ? qs.parse(req.url.split('/').pop().slice(0, -5)) : {};
@@ -66,43 +58,25 @@ router.get(['/:configuration/:resource/:type/:id/:extra.json', '/:resource/:type
 
   addonInterface.get(resource, type, id, configValues)
     .then(resp => {
-      const cacheHeaders = {
-        cacheMaxAge: 'max-age',
-        staleRevalidate: 'stale-while-revalidate',
-        staleError: 'stale-if-error'
-      };
-      const cacheControl = Object.keys(cacheHeaders)
-        .map(prop => Number.isInteger(resp[prop]) && `${cacheHeaders[prop]}=${resp[prop]}`)
-        .filter(Boolean)
-        .join(', ');
-
-      res.setHeader('Cache-Control', `${cacheControl}, public`);
+      res.setHeader('Cache-Control', 'public, max-age=3600, stale-while-revalidate=600');
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
       res.end(JSON.stringify(resp));
     })
     .catch(err => {
-      if (err.noHandler) {
-        next ? next() : res.writeHead(404).end(JSON.stringify({ err: 'not found' }));
-      } else {
-        console.error(err);
-        res.writeHead(500);
-        res.end(JSON.stringify({ err: 'handler error' }));
-      }
+      console.error(err);
+      res.writeHead(err.noHandler ? 404 : 500);
+      res.end(JSON.stringify({ err: err.noHandler ? 'not found' : 'handler error' }));
     });
 });
 
 // --- MOCH resolve redirect ---
-// Split into two routes (no '?' allowed in router patterns)
-router.get('/resolve/:moch/:apiKey/:infoHash/:cachedEntryInfo/:fileIndex', handleResolve);
-router.get('/resolve/:moch/:apiKey/:infoHash/:cachedEntryInfo/:fileIndex/:filename', handleResolve);
-
-function handleResolve(req, res) {
+router.get('/resolve/:moch/:apiKey/:infoHash/:cachedEntryInfo/:fileIndex/:filename?', (req, res) => {
   const userAgent = req.headers['user-agent'] || '';
   const parameters = {
     mochKey: req.params.moch,
     apiKey: req.params.apiKey,
     infoHash: req.params.infoHash.toLowerCase(),
-    fileIndex: isNaN(req.params.fileIndex) ? undefined : parseInt(req.params.fileIndex),
+    fileIndex: parseInt(req.params.fileIndex) || 0,
     cachedEntryInfo: req.params.cachedEntryInfo,
     ip: requestIp.getClientIp(req),
     host: `${req.protocol}://${req.headers.host}`,
@@ -110,17 +84,15 @@ function handleResolve(req, res) {
   };
 
   moch.resolve(parameters)
-    .then(url => {
-      res.writeHead(302, { Location: url });
-      res.end();
-    })
-    .catch(error => {
-      console.error(error);
+    .then(url => res.redirect(url))
+    .catch(err => {
+      console.error(err);
       res.statusCode = 404;
       res.end();
     });
-}
-// --- Fully Stremio-compatible server info ---
+});
+
+// --- ✅ Unified Stremio info route ---
 router.get([
   '/stremio',
   '/stremio/v1',
@@ -129,60 +101,23 @@ router.get([
   '/stremio/ping'
 ], (req, res) => {
   const base = `${req.protocol}://${req.headers.host}`;
-  const manifestUrl = `${base}/manifest.json`;
-
-  const manifestObj = {
+  const info = {
     id: "kj-torrentio-scraper",
     version: "1.0.0",
     name: "KJ Torrentio Scraper",
     description: "Custom streaming server compatible with Stremio",
     logo: `${base}/logo.png`,
-    background: `${base}/logo.png`,
-    manifestUrl,
     resources: ["stream", "meta"],
     types: ["movie", "series"],
     catalogs: [],
     behaviorHints: {
       configurable: false,
       configurationRequired: false
-    }
+    },
+    manifestUrl: `${base}/manifest.json`
   };
-
-  res.writeHead(200, {
-    "Content-Type": "application/json; charset=utf-8",
-    "Cache-Control": "no-cache"
-  });
-  res.end(JSON.stringify({ manifest: manifestObj }));
-});
-// --- DEBUG LOGGER FOR STREMIO TRAFFIC ---
-router.get(/^\/stremio(.*)/, (req, res, next) => {
-  console.log(`🛰️  Incoming Stremio request: ${req.method} ${req.url} from ${requestIp.getClientIp(req)}`);
-  next();
-});
-// --- Add a direct manifest reference for Stremio compatibility ---
-router.get(['/stremio/v1/server.json', '/stremio/ping'], (req, res) => {
-  const base = `${req.protocol}://${req.headers.host}`;
-  const serverInfo = {
-    id: "kj-torrentio-scraper",
-    version: "1.0.0",
-    name: "KJ Torrentio Scraper",
-    description: "Custom streaming server compatible with Stremio",
-    logo: `${base}/logo.png`,
-    manifestUrl: `${base}/manifest.json`,
-    resources: ["stream", "meta"],
-    types: ["movie", "series"],
-    catalogs: [],
-    behaviorHints: {
-      configurable: false,
-      configurationRequired: false
-    }
-  };
-
-  res.writeHead(200, {
-    "Content-Type": "application/json; charset=utf-8",
-    "Cache-Control": "no-cache"
-  });
-  res.end(JSON.stringify(serverInfo));
+  res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+  res.end(JSON.stringify(info));
 });
 
 // --- Default 404 fallback ---
