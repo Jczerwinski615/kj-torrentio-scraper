@@ -28,7 +28,15 @@ app.use(
 // Serve static files
 app.use(express.static("static", { maxAge: "1y" }));
 
-// Use the router (middleware) exported by serverless.js
+// --- Health check route (MUST be before serverless) ---
+app.get(["/health", "/stremio/health"], (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    message: "KJ-Torrentio-Scraper backend is healthy and online",
+  });
+});
+
+// Mount your serverless router
 app.use(serverless);
 
 // Initialize trackers (no listening here)
@@ -36,14 +44,5 @@ initBestTrackers().then(() =>
   console.log("✅ Best trackers initialized successfully")
 );
 
-// --- Health check route for Render & external verification ---
-app.get(['/health', '/stremio/health'], (req, res) => {
-  res.status(200).json({
-    status: 'ok',
-    message: 'KJ-Torrentio-Scraper backend is healthy and online'
-  });
-});
-
-
-// ✅ Export app only — no app.listen() here
+// ✅ Export app for start.js
 export default app;
