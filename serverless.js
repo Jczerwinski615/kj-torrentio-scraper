@@ -92,7 +92,7 @@ router.get('/resolve/:moch/:apiKey/:infoHash/:cachedEntryInfo/:fileIndex/:filena
     });
 });
 
-// --- ✅ Unified Stremio info route ---
+// --- Fully Stremio-compatible ping and server info ---
 router.get([
   '/stremio',
   '/stremio/v1',
@@ -101,23 +101,26 @@ router.get([
   '/stremio/ping'
 ], (req, res) => {
   const base = `${req.protocol}://${req.headers.host}`;
-  const info = {
-    id: "kj-torrentio-scraper",
+  const serverInfo = {
+    id: "org.stremio.kj-torrentio",
     version: "1.0.0",
     name: "KJ Torrentio Scraper",
-    description: "Custom streaming server compatible with Stremio",
-    logo: `${base}/logo.png`,
-    resources: ["stream", "meta"],
-    types: ["movie", "series"],
-    catalogs: [],
+    description: "Streaming server for Stremio",
     behaviorHints: {
       configurable: false,
       configurationRequired: false
     },
-    manifestUrl: `${base}/manifest.json`
+    resources: ["stream", "meta"],
+    types: ["movie", "series"],
+    catalogs: [],
+    logo: `${base}/logo.png`
   };
-  res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-  res.end(JSON.stringify(info));
+
+  res.writeHead(200, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-cache"
+  });
+  res.end(JSON.stringify(serverInfo));
 });
 
 // --- Default 404 fallback ---
