@@ -31,15 +31,10 @@ app.use(express.static("static", { maxAge: "1y" }));
 // Use the router (middleware) exported by serverless.js
 app.use(serverless);
 
-// --- FIX START ---
-const PORT = process.env.PORT || 10000;
-const HOST = "0.0.0.0"; // ✅ always bind to 0.0.0.0 on Render
+// Initialize trackers (no listening here)
+initBestTrackers().then(() =>
+  console.log("✅ Best trackers initialized successfully")
+);
 
-app.listen(PORT, HOST, async () => {
-  await initBestTrackers();
-  console.log(`✅ KJ-Torrentio-Scraper is live at http://localhost:${PORT}`);
-});
-// --- FIX END ---
-
-// ✅ Export Express app (middleware) for start.js and Render
+// ✅ Export app only — no app.listen() here
 export default app;
