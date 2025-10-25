@@ -3,14 +3,25 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import express from "express";
-import * as handler from "./index.js"; // use * as for CommonJS exports
+import * as addon from "./index.js";
 
 const app = express();
 
-// Pass all requests to your existing addon router
-app.use(handler.default || handler);
+// Try to detect what index.js exported and mount correctly
+const handler =
+  typeof addon === "function"
+    ? addon
+    : addon.default && typeof addon.default === "function"
+    ? addon.default
+    : addon.router || addon.default || addon;
 
-// Simple Render healthcheck endpoint
+if (typeof handler === "function") {
+  app.use(handler);
+} else {
+  console.warn("⚠️ No valid middleware exported from index.js");
+}
+
+// Simple Render health check route
 app.get("/health", (req, res) => {
   res.json({ status: "ok", message: "KJ-Torrentio-Scraper is live" });
 });
