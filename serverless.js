@@ -129,20 +129,21 @@ router.get([
   '/stremio/ping'
 ], (req, res) => {
   const base = `${req.protocol}://${req.headers.host}`;
+  const manifestUrl = `${base}/manifest.json`;
   const serverInfo = {
     id: "kj-torrentio-scraper",
     version: "1.0.0",
     name: "KJ Torrentio Scraper",
     description: "Custom streaming server compatible with Stremio",
     logo: `${base}/logo.png`,
-    behaviorHints: {
-      configurable: false,
-      configurationRequired: false
-    },
+    manifestUrl,
     resources: ["stream", "meta"],
     types: ["movie", "series"],
     catalogs: [],
-    contactEmail: "support@kj-torrentio.local"
+    behaviorHints: {
+      configurable: false,
+      configurationRequired: false
+    }
   };
 
   res.writeHead(200, {
