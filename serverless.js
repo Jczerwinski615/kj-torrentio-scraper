@@ -92,7 +92,7 @@ router.get('/resolve/:moch/:apiKey/:infoHash/:cachedEntryInfo/:fileIndex/:filena
     });
 });
 
-// --- Fully Stremio-compliant ping route ---
+// Stremio compatibility routes
 router.get([
   '/stremio',
   '/stremio/v1',
@@ -100,32 +100,25 @@ router.get([
   '/stremio/v1/ping',
   '/stremio/ping'
 ], (req, res) => {
-  const base = `${req.protocol}://${req.headers.host}`;
-  const serverInfo = {
-    id: "org.stremio.kj-torrentio",
+  const response = {
+    id: "kj-torrentio-scraper",
     version: "1.0.0",
     name: "KJ Torrentio Scraper",
-    description: "Streaming server for Stremio",
-    logo: `${base}/logo.png`,
+    description: "Custom streaming server for Stremio",
+    logo: `${req.protocol}://${req.headers.host}/logo.png`,
+    background: `${req.protocol}://${req.headers.host}/background.jpg`,
     contactEmail: "support@kj-torrentio.local",
     behaviorHints: {
       configurable: false,
       configurationRequired: false
     },
-    resources: [
-      "stream",
-      "meta"
-    ],
-    types: [
-      "movie",
-      "series"
-    ],
+    resources: ["stream", "meta"],
+    types: ["movie", "series"],
     catalogs: []
   };
 
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.statusCode = 200;
-  res.end(JSON.stringify(serverInfo));
+  res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+  res.end(JSON.stringify(response));
 });
 // --- Debug logger for Fire TV requests ---
 router.get('/debug/firetv', (req, res) => {
