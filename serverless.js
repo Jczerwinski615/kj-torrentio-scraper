@@ -96,25 +96,36 @@ router.get('/resolve/:moch/:apiKey/:infoHash/:cachedEntryInfo/:fileIndex/:filena
 router.get([
   '/stremio',
   '/stremio/v1',
+  '/stremio/v1/server.json',
   '/stremio/v1/ping',
   '/stremio/ping'
 ], (req, res) => {
-  const payload = {
+  const base = `${req.protocol}://${req.headers.host}`;
+  const serverInfo = {
     id: "org.stremio.kj-torrentio",
     version: "1.0.0",
     name: "KJ Torrentio Scraper",
     description: "Streaming server for Stremio",
-    resources: ["stream"],
-    types: ["movie", "series"],
+    logo: `${base}/logo.png`,
+    contactEmail: "support@kj-torrentio.local",
     behaviorHints: {
       configurable: false,
       configurationRequired: false
-    }
+    },
+    resources: [
+      "stream",
+      "meta"
+    ],
+    types: [
+      "movie",
+      "series"
+    ],
+    catalogs: []
   };
 
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.statusCode = 200;
-  res.end(JSON.stringify(payload));
+  res.end(JSON.stringify(serverInfo));
 });
 // --- Debug logger for Fire TV requests ---
 router.get('/debug/firetv', (req, res) => {
