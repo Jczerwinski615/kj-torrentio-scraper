@@ -36,5 +36,14 @@ initBestTrackers().then(() =>
   console.log("✅ Best trackers initialized successfully")
 );
 
+// --- Health check route for Render & external verification ---
+app.get(['/health', '/stremio/health'], (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    message: 'KJ-Torrentio-Scraper backend is healthy and online'
+  });
+});
+
+
 // ✅ Export app only — no app.listen() here
 export default app;
