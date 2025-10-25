@@ -122,6 +122,24 @@ router.get([
   });
   res.end(JSON.stringify(serverInfo));
 });
+// --- Debug logger for Fire TV requests ---
+router.get('/debug/firetv', (req, res) => {
+  console.log('🔥 FireTV Check:', {
+    method: req.method,
+    url: req.url,
+    headers: req.headers,
+    ip: req.socket.remoteAddress
+  });
+  res.setHeader('Content-Type', 'application/json');
+  res.end(JSON.stringify({ ok: true, headers: req.headers, url: req.url }));
+});
+
+// Catch all Stremio debug (to see what Fire TV actually requests)
+router.get('/debug/*', (req, res) => {
+  console.log('🔥 DEBUG incoming:', req.url);
+  res.setHeader('Content-Type', 'application/json');
+  res.end(JSON.stringify({ path: req.url, headers: req.headers }));
+});
 
 // --- Default 404 fallback ---
 export default function (req, res) {
