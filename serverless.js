@@ -70,7 +70,7 @@ router.get(['/:configuration/:resource/:type/:id/:extra.json', '/:resource/:type
 });
 
 // --- MOCH resolve redirect ---
-router.get('/resolve/:moch/:apiKey/:infoHash/:cachedEntryInfo/:fileIndex/:filename?', (req, res) => {
+router.get('/resolve/:moch/:apiKey/:infoHash/:cachedEntryInfo/:fileIndex/:filename', (req, res) => {
   const userAgent = req.headers['user-agent'] || '';
   const parameters = {
     mochKey: req.params.moch,
