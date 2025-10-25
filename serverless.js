@@ -120,32 +120,35 @@ function handleResolve(req, res) {
       res.end();
     });
 }
-// --- Stremio-compatible health & ping routes ---
+// --- Fully Stremio-compatible ping and server info ---
 router.get([
   '/stremio',
   '/stremio/v1',
   '/stremio/v1/server.json',
   '/stremio/v1/ping',
-  '/stremio/v1.0',
-  '/stremio/v1.0/ping',
-  '/stremio/ping',
-  '/ping'
+  '/stremio/ping'
 ], (req, res) => {
+  const base = `${req.protocol}://${req.headers.host}`;
   const serverInfo = {
     id: "kj-torrentio-scraper",
     version: "1.0.0",
     name: "KJ Torrentio Scraper",
-    description: "Streaming server (Stremio compatible)",
-    behaviorHints: { configurable: false, configurationRequired: false },
+    description: "Custom streaming server compatible with Stremio",
+    logo: `${base}/logo.png`,
+    behaviorHints: {
+      configurable: false,
+      configurationRequired: false
+    },
     resources: ["stream", "meta"],
     types: ["movie", "series"],
     catalogs: [],
-    logo: `${req.protocol}://${req.headers.host}/static/images/logo_v1.png`
+    contactEmail: "support@kj-torrentio.local"
   };
 
-  res.statusCode = 200;
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.writeHead(200, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-cache"
+  });
   res.end(JSON.stringify(serverInfo));
 });
 
